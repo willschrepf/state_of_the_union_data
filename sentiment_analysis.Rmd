@@ -1,0 +1,329 @@
+---
+title: "Sentiment Analysis"
+author: "Will Schrepferman"
+date: "3/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(rvest)
+library(gt)
+library(janitor)
+library(ggplot2)
+library(tidytext)
+library(glue)
+library(stringr)
+library(plotly)
+```
+
+## Milestone 5
+
+For ease of use, I decided to use the same github repo I used last time and modify the plot that I created!
+
+This file is largely the same as ms_5, except with a lot more detail and care put into the actual plot.
+
+```{r basefile, include = FALSE}
+## THIS IS PARTIALLY RECREATED FROM A KAGGLE TUTORIAL, LINK IS ABOVE
+
+# get a list of input files
+
+files <- list.files("input")
+
+readfile <- function(file){
+  
+    # get the file
+  
+    fileName <- glue("input/", file, sep = "")
+    
+    # get rid of any trailing spaces
+    
+    fileName <- trimws(fileName)
+
+    # read in the new file
+    
+    fileText <- glue(read_file(fileName))
+    
+    # remove any dollar signs (they're special characters in R)
+    
+    fileText <- gsub("\\$", "", fileText)
+    
+    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    
+    base <- tibble(text = fileText, file = file, year = as.numeric(str_match(file, "\\d{4}")), president = str_match(file, "(.*?)_")[2])
+
+    # return that tibble
+    
+    return(base)
+}
+
+# create a blank tibble
+
+base_file <- tibble()
+
+# run through all files in input
+
+for(i in files){
+
+    # found out about Rbind on stackoverflow, it was applicable here
+  
+    base_file <- rbind(base_file, readfile(i))
+}
+
+```
+
+```{r webdata, include = FALSE}
+
+# Read in some more state of the union data from the web
+
+# function to get the rightmost values in a character string
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+
+# website with information on word counts of all state of the union addresses
+
+web_data <- read_html("https://www.presidency.ucsb.edu/documents/presidential-documents-archive-guidebook/annual-messages-congress-the-state-the-union-3")
+
+# scrape table using xpath
+
+raw_data <- web_data %>%
+  html_nodes(xpath = "/html/body/div[2]/div[4]/div/section/div/section/div/div/div/div[2]/table") %>%
+  html_table()
+
+# ensure it is a df
+
+final_data <- raw_data[[1]]
+
+# remove the header row
+
+final_data <- final_data[2:nrow(final_data), ]
+
+# clean up data by renaming headers and filtering out columns that are averages
+
+final_data_clean <- final_data %>%
+  rename("president" = "X1", "date" = "X2", "delivery" = "X3", "words" = "X4") %>%
+  select(date, delivery, words) %>%
+  filter(delivery != "average") %>%
+  filter(delivery != "average spoken") %>%
+  filter(delivery != "average written") %>%
+  filter(delivery != "no annual messages") %>%
+  filter(delivery != "average (ex. 1981)") %>%
+  filter(delivery != "average (ex. 1989)") %>%
+  filter(delivery != "average (ex. 1993)") %>%
+  filter(delivery != "average (ex. 2001)") %>%
+  filter(delivery != "average (ex. 2009)") %>%
+  filter(delivery != "average (ex. 2017)") %>%
+  
+  # add a year column from the date column by using the substring function at the beginning of this code chunk
+  
+  mutate(year = as.numeric((substrRight(date, 4))))
+```
+
+```{r combinedata, include = FALSE}
+
+# combine web data with input data
+
+comb_data <- base_file %>%
+  inner_join(final_data_clean, by = "year")
+```
+
+```{r sentiments, include = FALSE}
+
+# function designed to get the sentiment of any file in our SOTU inputs
+
+GetSentiment <- function(file){
+  
+    # beginning of this file is exact same as earlier readfile function
+  
+    fileName <- glue("input/", file, sep = "")
+    fileName <- trimws(fileName)
+    fileText <- glue(read_file(fileName))
+    fileText <- gsub("\\$", "", fileText)
+
+    # break down text into individual words
+    
+    tokens <- tibble(text = fileText) %>% unnest_tokens(word, text)
+    
+    # get the total number of words
+    
+    num_words <- tokens %>%
+      count()
+
+    # get the sentiment from the text:
+    
+    sentiment <- tokens %>%
+      
+      # uses the existing Bing sentiment lexicon, more on this in the Kaggle link
+      
+      inner_join(get_sentiments("bing")) %>%
+      
+      # count the number of positive & negative words
+      
+      count(sentiment) %>%
+      
+      # make data wide rather than narrow
+      
+      spread(sentiment, n, fill = 0) %>%
+      
+      # number of positive words minus number of negative words divided by total words
+      
+      mutate(sentiment = ((positive - negative)/as.double(num_words))) %>%
+      
+      # add file name, year, and president like I did before
+      
+      mutate(file = file) %>%
+      mutate(year = as.numeric(str_match(file, "\\d{4}"))) %>%
+      mutate(president = str_match(file, "(.*?)_")[2])
+
+    # return our sentiment tibble
+    
+    return(sentiment)
+}
+
+# exactly as before, make a blank tibble and read in results with rbind
+
+sentiments <- tibble()
+
+for(i in files){
+    sentiments <- rbind(sentiments, GetSentiment(i))
+}
+
+
+# disambiguate Bush Sr. and George W. Bush
+# correct president in applicable rows
+
+bushSr <- sentiments %>%
+  filter(president == "Bush") %>%
+  filter(year < 2000) %>%
+  mutate(president = "Bush Sr.")
+
+# remove incorrect rows
+
+sentiments <- anti_join(sentiments, sentiments[sentiments$president == "Bush" & sentiments$year < 2000, ])
+
+# add corrected rows to data_frame
+
+sentiments <- full_join(sentiments, bushSr)
+
+# same process but for John Adams and John Quincy Adams
+
+quincyAdams <- sentiments %>%
+  filter(president == "Adams") %>%
+  filter(year > 1824) %>%
+  mutate(president = "Quincy Adams")
+
+sentiments <- anti_join(sentiments, sentiments[sentiments$president == "Adams" & sentiments$year > 1824, ])
+
+sentiments <- full_join(sentiments, quincyAdams)
+
+# same process but for FDR and Teddy Roosevelt
+
+FDR <- sentiments %>%
+  filter(president == "Roosevelt") %>%
+  filter(year > 1932) %>%
+  mutate(president = "F. Roosevelt")
+
+sentiments <- anti_join(sentiments, sentiments[sentiments$president == "Roosevelt" & sentiments$year > 1932, ])
+
+sentiments <- full_join(sentiments, FDR)
+
+sentiments <- sentiments %>%
+  mutate(president = ifelse(president == "Roosevelt", "T. Roosevelt", president))
+
+```
+
+```{r sentiment_plot, include = FALSE}
+## THIS IS WHERE MY ACTUAL NEW CODE IS
+
+
+# filter for only speeches from the last 100 years (expanded slightly to include all of Wilson's term)
+
+sentiments <- sentiments %>%
+  filter(year >= 1913)
+
+# manually add in the party of each president
+# I could have found an online table, but that would honestly
+# have taken longer than manually inputting this minute amount of data
+
+sentiments <- sentiments %>%
+  mutate(Party = "party") %>%
+  mutate(Party = ifelse(president == "Wilson", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Harding", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Coolidge", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Hoover", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "F. Roosevelt", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Truman", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Eisenhower", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Kennedy", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Johnson", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Nixon", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Ford", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Carter", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Reagan", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Bush Sr.", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Clinton", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Bush", "Republican", Party)) %>%
+  mutate(Party = ifelse(president == "Obama", "Democrat", Party)) %>%
+  mutate(Party = ifelse(president == "Trump", "Republican", Party)) %>%
+  
+  # turn year into numeric
+  
+  mutate(year = as.numeric(year))
+
+# make plot in the same way as last time
+
+sentiment_plot <- ggplot(sentiments, aes(x = year, y = sentiment)) +
+  labs(x = "Year", y = "Positive Sentiment", title = "Positive Sentiment of Modern State of the Union Addresses") +
+  geom_point(aes(color = Party, president = president)) +
+  
+  # add colors by party, not by president
+  scale_color_manual(values = c("Democrat" = "blue", "Republican" = "red")) +
+  
+  # manually input vertical lines to disambiguate between presidents
+  
+  geom_vline(xintercept = 1920.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1922.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1928.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1932.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1945.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1953.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1961.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1963.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1969.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1974.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1977.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1981.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1988.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 1992.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 2000.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 2008.5, linetype="dotted", color = "darkgrey", size= .4) +
+  geom_vline(xintercept = 2016.5, linetype="dotted", color = "darkgrey", size= .4)
+
+# allows user to hover over points to see which president it is
+
+interactive <- ggplotly(sentiment_plot, tooltip = c("president", "year", "sentiment"))
+
+```
+
+## The Graph
+
+Here's the completed graph!
+
+Note on methodology: In order to avoid trickiness with political parties outside of the modern two-party system, I used only speeches from the last 100 years, expanded slightly to include the entirety of Wilson's term. "Positive sentiment" refers to the value of positive tone detected in the speech using sentiment analysis, with 0 being a totally neutral speech.
+
+Note on graph use: It's interactive! Hover over each dot to see which president it is. The vertical lines mark different presidents!
+
+```{r}
+interactive
+```
+
+
+Fun historical notes that my analysis picks up on: it appears that Eisenhower was certifiably bubbly, with consistently more positive speeches than other presidents. FDR delivered the only two overall tonally negative speeches in 1938 and 1942- not surprising that the more negative speeches came during bleak times like the tail end of the Great Depression and the beginning of World War 2.
+
+Also, another interesting trend worth potentially examining more: eyeballing it, it looks like most presidents get more positive with time. Step 1: become President. Step 2: ?. Step 3: happiness.
+
+

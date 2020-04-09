@@ -1,0 +1,260 @@
+---
+title: "Topic Modeling"
+author: "Will Schrepferman"
+date: "3/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(rvest)
+library(gt)
+library(janitor)
+library(ggplot2)
+library(tidytext)
+library(tidyr)
+library(glue)
+library(stringr)
+library(plotly)
+library(topicmodels)
+```
+
+## Milestone 5
+
+
+```{r basefile, include = FALSE}
+## THIS IS PARTIALLY RECREATED FROM A KAGGLE TUTORIAL, LINK IS ABOVE
+
+# get a list of input files
+
+files <- list.files("input")
+
+readfile <- function(file){
+  
+    # get the file
+  
+    fileName <- glue("input/", file, sep = "")
+    
+    # get rid of any trailing spaces
+    
+    fileName <- trimws(fileName)
+
+    # read in the new file
+    
+    fileText <- glue(read_file(fileName))
+    
+    # remove any dollar signs (they're special characters in R)
+    
+    fileText <- gsub("\\$", "", fileText)
+    
+    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    
+    tokens <- tibble(text = fileText, name = file) %>% unnest_tokens(word, text)
+
+    # return that tibble
+    
+    return(tokens)
+}
+
+# create a blank tibble
+
+base_file <- tibble()
+
+# run through all files in input
+
+for(i in files){
+
+    # found out about Rbind on stackoverflow, it was applicable here
+  
+    base_file <- rbind(base_file, readfile(i))
+}
+
+
+total_words <- base_file %>% 
+   anti_join(stop_words) %>%
+   group_by(name) %>%
+   count(word, sort = TRUE) %>%
+   summarize(total = sum(n))
+
+common_words_graph <- base_file %>% 
+  anti_join(stop_words) %>%
+  group_by(name) %>%
+  count(word, sort = TRUE) %>%
+  left_join(total_words, by = "name") %>%
+  ggplot(aes(n/total)) +
+  geom_histogram(bins = 20)
+
+speech_words <- base_file %>% 
+  anti_join(stop_words) %>%
+  group_by(name) %>%
+  count(word, sort = TRUE) %>%
+  left_join(total_words, by = "name") %>%
+  select(-total) %>%
+  bind_tf_idf(word, name, n)
+
+speech_graphs <- speech_words %>%
+  arrange(desc(tf_idf)) %>%
+  filter((name == "Obama_2009.txt") | (name == "Truman_1946.txt") | (name == "Polk_1846.txt") | (name == "Roosevelt_1934.txt")) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  group_by(name) %>%
+  top_n(15) %>%
+  ungroup() %>%
+  ggplot(aes(word, tf_idf, fill = name)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = NULL, y = "tf-idf") +
+  facet_wrap(~name, ncol = 2, scales = "free") +
+  coord_flip()
+```
+
+```{r}
+
+readfile2 <- function(file){
+  
+    # get the file
+  
+    fileName <- glue("input/", file, sep = "")
+    
+    # get rid of any trailing spaces
+    
+    fileName <- trimws(fileName)
+
+    # read in the new file
+    
+    fileText <- glue(read_file(fileName))
+    
+    # remove any dollar signs (they're special characters in R)
+    
+    fileText <- gsub("\\$", "", fileText)
+    
+    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    
+    tokens <- tibble(text = fileText, name = file) %>% unnest_tokens(word, text)
+
+    # return that tibble
+    
+    return(tokens)
+}
+
+readfile3 <- function(file){
+  
+    # get the file
+  
+    fileName <- glue("input/", file, sep = "")
+    
+    # get rid of any trailing spaces
+    
+    fileName <- trimws(fileName)
+
+    # read in the new file
+    
+    fileText <- glue(read_file(fileName))
+    
+    # remove any dollar signs (they're special characters in R)
+    
+    fileText <- gsub("\\$", "", fileText)
+    
+    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    
+    tokens <- tibble(name = file)
+
+    # return that tibble
+    
+    return(tokens)
+}
+
+# create a blank tibble
+
+base_file2 <- tibble()
+
+# run through all files in input
+
+for(i in files){
+
+    # found out about Rbind on stackoverflow, it was applicable here
+  
+    base_file2 <- rbind(base_file, readfile2(i))
+}
+
+rankings <- tibble()
+
+for(i in files){
+  rankings <- rbind(rankings, readfile3(i))
+}
+
+rankings <- tibble::rowid_to_column(rankings, "document")
+
+top_terms <- tibble(word = character())
+
+top_terms <- top_terms %>% add_row(word = "government") %>%
+  add_row(word = "people") %>%
+  add_row(word = "congress") %>%
+  add_row(word = "country") %>%
+  add_row(word = "united") %>%
+  add_row(word = "america") %>%
+  add_row(word = "american") %>%
+  add_row(word = "americans") %>%
+  add_row(word = "time") %>%
+  add_row(word = "public") %>%
+  add_row(word = "national") %>%
+  add_row(word = "federal") %>%
+  add_row(word = "law") %>%
+  add_row(word = "nation") %>%
+  add_row(word = "legislation") %>%
+  add_row(word = "citizens") %>%
+  add_row(word = "power")
+  
+
+
+speech_words_new <- base_file2 %>% 
+  anti_join(stop_words) %>%
+  anti_join(top_terms) %>%
+  group_by(name) %>%
+  count(word, sort = FALSE) %>%
+  left_join(rankings, by = "name") %>%
+  mutate(term = word) %>%
+  mutate(count = n) %>%
+  select(document, term, count)
+
+
+
+speech_dtm <- speech_words_new %>%
+  cast_dtm(document, term, count)
+
+speech_lda <- LDA(speech_dtm, k = 2)
+
+speech_lda_tidy <- tidy(speech_lda, matrix = "beta") %>%
+  arrange(desc(beta))
+
+speech_top_terms <- speech_lda_tidy %>%
+  group_by(topic) %>%
+  top_n(20, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+common_words <- tibble(term = character())
+
+  
+
+speech_top_terms_graph <- speech_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip() +
+  scale_x_reordered()
+
+speech_lda_tidy_gamma <- tidy(speech_lda, matrix = "gamma") %>%
+  filter(document == 100)
+```
+
+
+
+
+
+
+
+
+
+
+
