@@ -18,10 +18,12 @@ library(glue)
 library(stringr)
 library(plotly)
 library(topicmodels)
+library(keras)
+library(janeaustenr)
+library(tokenizers)
 ```
 
-## Milestone 5
-
+## Topic Modelling
 
 ```{r basefile, include = FALSE}
 ## THIS IS PARTIALLY RECREATED FROM A KAGGLE TUTORIAL, LINK IS ABOVE
@@ -109,6 +111,156 @@ speech_graphs <- speech_words %>%
 
 ```{r}
 
+readfileYear <- function(file){
+  
+    # get the file
+  
+    fileName <- glue("input/", file, sep = "")
+    
+    # get rid of any trailing spaces
+    
+    fileName <- trimws(fileName)
+
+    # read in the new file
+    
+    fileText <- glue(read_file(fileName))
+    
+    # remove any dollar signs (they're special characters in R)
+    
+    fileText <- gsub("\\$", "", fileText)
+    
+    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    
+    tokens <- tibble(text = fileText, name = file, year = as.numeric(str_match(file, "\\d{4}"))) %>% unnest_tokens(word, text)
+
+    # return that tibble
+    
+    return(tokens)
+}
+
+readfile3Year <- function(file){
+  
+    # get the file
+  
+    fileName <- glue("input/", file, sep = "")
+    
+    # get rid of any trailing spaces
+    
+    fileName <- trimws(fileName)
+
+    # read in the new file
+    
+    fileText <- glue(read_file(fileName))
+    
+    # remove any dollar signs (they're special characters in R)
+    
+    fileText <- gsub("\\$", "", fileText)
+    
+    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    
+    tokens <- tibble(name = file, year = as.numeric(str_match(file, "\\d{4}")))
+
+    # return that tibble
+    
+    return(tokens)
+}
+
+# create a blank tibble
+
+base_file_modern <- tibble()
+
+# run through all files in input
+
+for(i in files){
+
+    # found out about Rbind on stackoverflow, it was applicable here
+  
+    base_file_modern <- rbind(base_file_modern, readfileYear(i))
+}
+
+
+base_file_modern <- base_file_modern %>%
+  filter(year >= 1913)
+
+rankingsModern <- tibble()
+
+for(i in files){
+  rankingsModern <- rbind(rankingsModern, readfile3Year(i))
+}
+
+rankingsModern <- rankingsModern %>%
+  filter(year >= 1913)
+
+rankingsModern <- tibble::rowid_to_column(rankingsModern, "document")
+
+top_terms <- tibble(word = character())
+
+top_terms <- top_terms %>% add_row(word = "government") %>%
+  add_row(word = "people") %>%
+  add_row(word = "congress") %>%
+  add_row(word = "country") %>%
+  add_row(word = "united") %>%
+  add_row(word = "america") %>%
+  add_row(word = "american") %>%
+  add_row(word = "americans") %>%
+  add_row(word = "time") %>%
+  add_row(word = "public") %>%
+  add_row(word = "national") %>%
+  add_row(word = "federal") %>%
+  add_row(word = "law") %>%
+  add_row(word = "nation") %>%
+  add_row(word = "legislation") %>%
+  add_row(word = "citizens") %>%
+  add_row(word = "power")
+  
+
+
+speech_words_new_modern <- base_file_modern %>% 
+  anti_join(stop_words) %>%
+  anti_join(top_terms) %>%
+  group_by(name) %>%
+  count(word, sort = FALSE) %>%
+  left_join(rankingsModern, by = "name") %>%
+  mutate(term = word) %>%
+  mutate(count = n) %>%
+  select(document, term, count)
+
+
+
+speech_dtm_modern <- speech_words_new %>%
+  cast_dtm(document, term, count)
+
+speech_lda_modern <- LDA(speech_dtm, k = 10)
+
+speech_lda_modern_tidy <- tidy(speech_lda_modern, matrix = "beta") %>%
+  arrange(desc(beta))
+
+speech_top_terms_modern <- speech_lda_modern_tidy %>%
+  group_by(topic) %>%
+  top_n(12, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+common_words <- tibble(term = character())
+
+  
+
+speech_top_terms_graph_modern <- speech_top_terms_modern %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip() +
+  scale_x_reordered()
+
+speech_lda_tidy_gamma_modern <- tidy(speech_lda_modern, matrix = "gamma") %>%
+  filter(document == 100)
+```
+
+
+
+```{r}
+
 readfile2 <- function(file){
   
     # get the file
@@ -182,6 +334,8 @@ for(i in files){
   rankings <- rbind(rankings, readfile3(i))
 }
 
+
+
 rankings <- tibble::rowid_to_column(rankings, "document")
 
 top_terms <- tibble(word = character())
@@ -228,7 +382,7 @@ speech_lda_tidy <- tidy(speech_lda, matrix = "beta") %>%
 
 speech_top_terms <- speech_lda_tidy %>%
   group_by(topic) %>%
-  top_n(20, beta) %>%
+  top_n(12, beta) %>%
   ungroup() %>%
   arrange(topic, -beta)
 
@@ -247,6 +401,10 @@ speech_top_terms_graph <- speech_top_terms %>%
 speech_lda_tidy_gamma <- tidy(speech_lda, matrix = "gamma") %>%
   filter(document == 100)
 ```
+
+
+
+
 
 
 

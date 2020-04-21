@@ -6,6 +6,7 @@ library(glue)
 library(tidytext)
 library(stringr)
 library(rvest)
+library(gt)
 
 files <- list.files("input")
 
@@ -142,13 +143,59 @@ sentiments <- sentiments %>%
     
     mutate(year = as.numeric(year))
 
+
+base_file_gt <- base_file %>%
+    mutate(speech_text = paste(str_sub(text, 1, 1000), "...")) %>%
+    sample_n(size = 5) %>%
+    select(year, president, speech_text) %>%
+    gt() %>%
+    cols_label(year = "Year", president = "President", speech_text = "Text")
+
+
 shinyApp(
-    ui = fluidPage(
-        
-        plotlyOutput("plot")
-    ),
+    ui = navbarPage(
+        "State of the Union Text Analysis",
+        tabPanel("Introduction",
+                 titlePanel("Introduction"), p("Welcome to my final project for Gov 1005: Data!"),
+                 p("Article 2, Section 3 of the Constitution describes that the President shall 'from time to time give to the Congress Information of the State of the Union, and recommend to their Consideration such measures as he shall judge necessary and expedient.'"),
+                 p("This one of the few political traditions that every President from Washington to Trump has partaken in. For two centuries, every President has taken the chance to report an assessment on the condition of the United States, recommend a legislative program for the coming session of Congress, and present a vision for the future."),
+                 p("1,773,287 total words have been spoken in this tradition, creating a fascinating trove of data. This project seeks to apply a series of data science techniques to better understand the State of the Union, including sentiment analysis of the positivity and tone of each address, topic modeling to illustrate the relationship of words and ideas to one another, and machine learning in the form of natural language generation to create a 'new', automated State of the Union address.")),
+        tabPanel("Data",
+                 titlePanel("Data"),
+                 p("The data used in this project is from this corpus on Kaggle:"),
+                 p("https://www.kaggle.com/jyronw/us-state-of-the-union-addresses-1790-2019"),
+                 p("I initially combined this data with other information I found on State of the Union addresses, but this proved frivolous to my ultimate analysis. I decided to derive most of my insights from the text data alone absent other factors."),
+                 p("Here is a random sample of the beginnings of five speeches in my data:"),
+                 gt_output(outputId = "base_file_gt")),
+        tabPanel("Sentiment Analysis",
+                 titlePanel("Sentiment Analysis"),
+                 p("A sentiment analysis quantifies the positive and negative tone inherent in a speech. Using a comprehensive lexicon of words, I calculated the average positive sentiment of every State of the Union was calculated. In order to maintain the lexicon's viability, I only used 'modern' speeches- those delivered in a spoken format in the last hundred years (expanded slightly to include all of Pres. Wilson's speeches)- so that the lexicon did not struggle to analyze the diction and speech patterns of 19th and 18th century English."),
+                 p("Hover over indiviudal data points to see more specifics! There are several interesting historical trends that can be seen here- Dwight Eisenhower tended to be the most positive speaker, and FDR's addresses during the Depression and Second World War were the only speeches with a net negativity."),
+                 plotlyOutput("sentiment_plot")),
+        tabPanel("Topic Modeling",
+                 titlePanel("Discussion Title"),
+                 p("DATA")),
+        tabPanel("Natural Language Generation",
+                 titlePanel("Discussion Title"),
+                 p("DATA")),
+        tabPanel("Discussion",
+                 titlePanel("Discussion Title"),
+                 p("DATA")),
+        tabPanel("About", 
+                 titlePanel("About"),
+                 h3("Project Background and Motivations"),
+                 p("Hello, this is where I talk about my project."),
+                 h3("About Me"),
+                 p("My name is ______ and I study ______. 
+             You can reach me at ______@college.harvard.edu."))),
     server = function(input, output) {
-        output$plot <- renderPlotly({
+        output$base_file_gt <- render_gt(
+            expr = base_file_gt,
+            height = px(600),
+            width = px(600)
+        )
+        
+        output$sentiment_plot <- renderPlotly({
             print(
             ggplotly(ggplot(sentiments, aes(x = year, y = sentiment)) +
                          labs(x = "Year", y = "Positive Sentiment", title = "Positive Sentiment of Modern State of the Union Addresses") +

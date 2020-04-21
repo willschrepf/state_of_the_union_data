@@ -151,7 +151,8 @@ GetSentiment <- function(file){
     # get the total number of words
     
     num_words <- tokens %>%
-      count()
+      count() %>%
+      pull()
 
     # get the sentiment from the text:
     
@@ -177,7 +178,8 @@ GetSentiment <- function(file){
       
       mutate(file = file) %>%
       mutate(year = as.numeric(str_match(file, "\\d{4}"))) %>%
-      mutate(president = str_match(file, "(.*?)_")[2])
+      mutate(president = str_match(file, "(.*?)_")[2]) %>%
+      mutate(num_words = num_words)
 
     # return our sentiment tibble
     

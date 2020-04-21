@@ -1,0 +1,188 @@
+---
+title: "nlg"
+author: "Will Schrepferman"
+date: "4/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(gt)
+library(janitor)
+library(ggplot2)
+library(tidytext)
+library(tidyr)
+library(glue)
+library(stringr)
+library(plotly)
+library(topicmodels)
+library(keras)
+library(janeaustenr)
+library(tokenizers)
+```
+
+## NLG
+
+```{r}
+files <- list.files("input")
+
+readfile <- function(file){
+  
+    # get the file
+  
+    fileName <- glue("input/", file, sep = "")
+    
+    # get rid of any trailing spaces
+    
+    fileName <- trimws(fileName)
+
+    # read in the new file
+    
+    fileText <- glue(read_file(fileName))
+    
+    # remove any dollar signs (they're special characters in R)
+    
+    fileText <- gsub("\\$", "", fileText)
+    
+    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    
+    tokens <- tibble(text = fileText, name = file, year = as.numeric(str_match(file, "\\d{4}")), president = str_match(file, "(.*?)_")[2]) %>% unnest_tokens(word, text)
+
+    # return that tibble
+    
+    return(tokens)
+}
+
+# create a blank tibble
+
+base_file <- tibble()
+
+# run through all files in input
+
+for(i in files){
+
+    # found out about Rbind on stackoverflow, it was applicable here
+  
+    base_file <- rbind(base_file, readfile(i))
+}
+
+
+base_file_modern <- base_file %>%
+  filter(president == "Obama")
+
+
+
+
+maxlen <- 40
+
+
+
+
+text <- base_file_modern %>%
+  pull(word) %>%
+  str_to_lower() %>%
+  str_c(collapse = " ")  %>%
+  tokenize_characters(strip_non_alphanum = FALSE, simplify = TRUE)
+
+chars <- text %>%
+  unique() %>%
+  sort()
+
+
+# Cut the text in semi-redundant sequences of maxlen characters
+dataset <- map(
+  seq(1, length(text) - maxlen - 1, by = 3), 
+  ~list(sentece = text[.x:(.x + maxlen - 1)], next_char = text[.x + maxlen])
+  )
+
+dataset <- transpose(dataset)
+
+# Vectorization
+x <- array(0, dim = c(length(dataset$sentece), maxlen, length(chars)))
+y <- array(0, dim = c(length(dataset$sentece), length(chars)))
+
+for(i in 1:length(dataset$sentece)){
+  
+  x[i,,] <- sapply(chars, function(x){
+    as.integer(x == dataset$sentece[[i]])
+  })
+  
+  y[i,] <- as.integer(chars == dataset$next_char[[i]])
+  
+}
+
+# Model Definition --------------------------------------------------------
+
+model <- keras_model_sequential()
+
+model %>%
+  layer_lstm(128, input_shape = c(maxlen, length(chars))) %>%
+  layer_dense(length(chars)) %>%
+  layer_activation("softmax")
+
+optimizer <- optimizer_rmsprop(lr = 0.01)
+
+model %>% compile(
+  loss = "categorical_crossentropy", 
+  optimizer = optimizer
+)
+
+# Training & Results ----------------------------------------------------
+
+sample_mod <- function(preds, temperature = 1){
+  preds <- log(preds)/temperature
+  exp_preds <- exp(preds)
+  preds <- exp_preds/sum(exp(preds))
+  
+  rmultinom(1, 1, preds) %>% 
+    as.integer() %>%
+    which.max()
+}
+
+on_epoch_end <- function(epoch, logs) {
+  
+  cat(sprintf("epoch: %02d ---------------\n\n", epoch))
+  
+  for(diversity in c(0.2, 0.5, 1, 1.2)){
+    
+    cat(sprintf("diversity: %f ---------------\n\n", diversity))
+    
+    start_index <- sample(1:(length(text) - maxlen), size = 1)
+    sentence <- text[start_index:(start_index + maxlen - 1)]
+    generated <- ""
+    
+    for(i in 1:400){
+      
+      x <- sapply(chars, function(x){
+        as.integer(x == sentence)
+      })
+      x <- array_reshape(x, c(1, dim(x)))
+      
+      preds <- predict(model, x)
+      next_index <- sample_mod(preds, diversity)
+      next_char <- chars[next_index]
+      
+      generated <- str_c(generated, next_char, collapse = "")
+      sentence <- c(sentence[-1], next_char)
+      
+    }
+    
+    cat(generated)
+    cat("\n\n")
+    
+  }
+}
+
+print_callback <- callback_lambda(on_epoch_end = on_epoch_end)
+
+model %>% fit(
+  x, y,
+  batch_size = 128,
+  epochs = 25,
+  callbacks = print_callback
+)
+
+```
+
