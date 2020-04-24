@@ -1,0 +1,13 @@
+name: ms_8
+title: ms_8
+username:
+account: willschrepf
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2179792
+bundleId: 3060570
+url: https://willschrepf.shinyapps.io/ms_8/
+when: 1587747495.35045
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|nlg.Rmd|README.md|sentiment_analysis.Rmd|topic_modeling.Rmd

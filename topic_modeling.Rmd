@@ -85,7 +85,8 @@ common_words_graph <- base_file %>%
   count(word, sort = TRUE) %>%
   left_join(total_words, by = "name") %>%
   ggplot(aes(n/total)) +
-  geom_histogram(bins = 20)
+  geom_histogram(bins = 20) +
+  labs(title = "Word Frequency", x = "Frequency", "Frequency Rank")
 
 speech_words <- base_file %>% 
   anti_join(stop_words) %>%
@@ -375,7 +376,7 @@ speech_words_new <- base_file2 %>%
 speech_dtm <- speech_words_new %>%
   cast_dtm(document, term, count)
 
-speech_lda <- LDA(speech_dtm, k = 2)
+speech_lda <- LDA(speech_dtm, k = 8)
 
 speech_lda_tidy <- tidy(speech_lda, matrix = "beta") %>%
   arrange(desc(beta))

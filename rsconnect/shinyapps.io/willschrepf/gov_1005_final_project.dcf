@@ -1,0 +1,12 @@
+name: gov_1005_final_project
+title: gov_1005_final_project
+username:
+account: willschrepf
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2160757
+bundleId: 3060401
+url: https://willschrepf.shinyapps.io/gov_1005_final_project/
+when: 1587745362.23424
+asMultiple: FALSE
+asStatic: FALSE
