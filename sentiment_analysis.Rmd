@@ -25,7 +25,6 @@ For ease of use, I decided to use the same github repo I used last time and modi
 This file is largely the same as ms_5, except with a lot more detail and care put into the actual plot.
 
 ```{r basefile, include = FALSE}
-## THIS IS PARTIALLY RECREATED FROM A KAGGLE TUTORIAL, LINK IS ABOVE
 
 # get a list of input files
 
@@ -74,6 +73,9 @@ for(i in files){
 ```
 
 ```{r webdata, include = FALSE}
+
+# THIS IS WHERE I DEMONSTRATE MY ABILITY TO READ IN ADDITIONAL DATA,
+# ALTHOUGH I ENDED UP NOT USING IT
 
 # Read in some more state of the union data from the web
 
@@ -239,8 +241,6 @@ sentiments <- sentiments %>%
 ```
 
 ```{r sentiment_plot, include = FALSE}
-## THIS IS WHERE MY ACTUAL NEW CODE IS
-
 
 # filter for only speeches from the last 100 years (expanded slightly to include all of Wilson's term)
 

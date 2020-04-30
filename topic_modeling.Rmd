@@ -23,10 +23,9 @@ library(janeaustenr)
 library(tokenizers)
 ```
 
-## Topic Modelling
+## Topic Modeling
 
 ```{r basefile, include = FALSE}
-## THIS IS PARTIALLY RECREATED FROM A KAGGLE TUTORIAL, LINK IS ABOVE
 
 # get a list of input files
 
@@ -73,11 +72,15 @@ for(i in files){
 }
 
 
+# remove common words and count how many words are in the whole corpus
+
 total_words <- base_file %>% 
    anti_join(stop_words) %>%
    group_by(name) %>%
    count(word, sort = TRUE) %>%
    summarize(total = sum(n))
+
+# graph of mos common words for whole corpus
 
 common_words_graph <- base_file %>% 
   anti_join(stop_words) %>%
@@ -88,6 +91,8 @@ common_words_graph <- base_file %>%
   geom_histogram(bins = 20) +
   labs(title = "Word Frequency", x = "Frequency", "Frequency Rank")
 
+# measure term frequency * inverse document frequency (word distinctiveness)
+
 speech_words <- base_file %>% 
   anti_join(stop_words) %>%
   group_by(name) %>%
@@ -95,6 +100,8 @@ speech_words <- base_file %>%
   left_join(total_words, by = "name") %>%
   select(-total) %>%
   bind_tf_idf(word, name, n)
+
+# graph distinctive words for a selection of historically relevant speeches
 
 speech_graphs <- speech_words %>%
   arrange(desc(tf_idf)) %>%
@@ -111,6 +118,8 @@ speech_graphs <- speech_words %>%
 ```
 
 ```{r}
+
+# THIS WAS MY FIRST ATTEMPT- IT DOES NOT FUNCTION, BUT I AM LEAVING THE CODE HERE TO COME BACK TO LATER.
 
 readfileYear <- function(file){
   
@@ -262,6 +271,8 @@ speech_lda_tidy_gamma_modern <- tidy(speech_lda_modern, matrix = "gamma") %>%
 
 ```{r}
 
+# needed a slightly modified readfile function that returns unnested tokens
+
 readfile2 <- function(file){
   
     # get the file
@@ -280,7 +291,7 @@ readfile2 <- function(file){
     
     fileText <- gsub("\\$", "", fileText)
     
-    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    # create the tibble
     
     tokens <- tibble(text = fileText, name = file) %>% unnest_tokens(word, text)
 
@@ -307,7 +318,7 @@ readfile3 <- function(file){
     
     fileText <- gsub("\\$", "", fileText)
     
-    # create the tibble using the file's text, file name, year by grabbing the last four digits of file name, and president
+    # create the tibble
     
     tokens <- tibble(name = file)
 
@@ -335,11 +346,13 @@ for(i in files){
   rankings <- rbind(rankings, readfile3(i))
 }
 
-
+# most common words
 
 rankings <- tibble::rowid_to_column(rankings, "document")
 
 top_terms <- tibble(word = character())
+
+# make a tibble of top terms we want to exclude from topic models
 
 top_terms <- top_terms %>% add_row(word = "government") %>%
   add_row(word = "people") %>%
@@ -359,7 +372,7 @@ top_terms <- top_terms %>% add_row(word = "government") %>%
   add_row(word = "citizens") %>%
   add_row(word = "power")
   
-
+# remove most common, topic-less words
 
 speech_words_new <- base_file2 %>% 
   anti_join(stop_words) %>%
@@ -371,15 +384,19 @@ speech_words_new <- base_file2 %>%
   mutate(count = n) %>%
   select(document, term, count)
 
-
+# create document-term matrix
 
 speech_dtm <- speech_words_new %>%
   cast_dtm(document, term, count)
+
+# create Latent Dirichlet Allocation model w/ 8 topics
 
 speech_lda <- LDA(speech_dtm, k = 8)
 
 speech_lda_tidy <- tidy(speech_lda, matrix = "beta") %>%
   arrange(desc(beta))
+
+# group top 12 words for each topic
 
 speech_top_terms <- speech_lda_tidy %>%
   group_by(topic) %>%
@@ -389,7 +406,7 @@ speech_top_terms <- speech_lda_tidy %>%
 
 common_words <- tibble(term = character())
 
-  
+# plot top terms
 
 speech_top_terms_graph <- speech_top_terms %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
@@ -398,6 +415,9 @@ speech_top_terms_graph <- speech_top_terms %>%
   facet_wrap(~ topic, scales = "free") +
   coord_flip() +
   scale_x_reordered()
+
+# create gamma model, which uses a different measure of word frequency
+# not for display, more for personal curiosity
 
 speech_lda_tidy_gamma <- tidy(speech_lda, matrix = "gamma") %>%
   filter(document == 100)

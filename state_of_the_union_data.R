@@ -12,8 +12,6 @@ files <- list.files("input")
 
 GetSentiment <- function(file){
     
-    # beginning of this file is exact same as earlier readfile function
-    
     fileName <- glue("input/", file, sep = "")
     fileName <- trimws(fileName)
     fileText <- glue(read_file(fileName))
@@ -32,7 +30,7 @@ GetSentiment <- function(file){
     
     sentiment <- tokens %>%
         
-        # uses the existing Bing sentiment lexicon, more on this in the Kaggle link
+        # uses the existing Bing sentiment lexicon
         
         inner_join(get_sentiments("bing")) %>%
         
@@ -147,15 +145,20 @@ sentiments <- sentiments %>%
 shinyApp(
     ui = navbarPage(
         "State of the Union Text Analysis",
-        tabPanel("Introduction",
-                 titlePanel("Introduction"), p("Welcome to my final project for Gov 1005: Data!"),
+        tabPanel("About",
+                 titlePanel("Introduction"), 
+                 h3("Welcome to my final project for Gov 1005: Data!"),
+                 img(src = "SOTU.jpg", align = "center"),
+                 p(""),
                  p("Article 2, Section 3 of the Constitution describes that the President shall 'from time to time give to the Congress Information of the State of the Union, and recommend to their Consideration such measures as he shall judge necessary and expedient.'"),
                  p("This one of the few political traditions that every President from Washington to Trump has partaken in. For two centuries, every President has taken the chance to report an assessment on the condition of the United States, recommend a legislative program for the coming session of Congress, and present a vision for the future."),
                  p("1,773,287 total words have been spoken in this tradition, creating a fascinating trove of data. This project seeks to apply a series of data science techniques to better understand the State of the Union, including sentiment analysis of the positivity and tone of each address, topic modeling to illustrate the relationship of words and ideas to one another, and machine learning in the form of natural language generation to create a 'new', automated State of the Union address."),
                  p("The data used in this project is from this corpus on Kaggle:"),
                  p("https://www.kaggle.com/jyronw/us-state-of-the-union-addresses-1790-2019"),
-                 p("I initially combined this data with other information I found on State of the Union addresses, but this proved frivolous to my ultimate analysis. I decided to derive most of my insights from the text data alone absent other factors."),
-                 p("Finally, a quick note on the visualization of data: the processes of text mining and machine learning are incredibly intensive. It took hours of configuring the GPU on my high-end laptop for processes to run, and even then it takes hours. As such, most of the plots and displays of data will be in the form of images rather than graphs generated from this application, as I want it to actually display for people without overloading Shiny or somebody else's computer.")),
+                 p("I initially combined this data with other information I found on State of the Union addresses (you can still see that in my code, so I believe I met the project requirement guidelines), but this proved frivolous to my ultimate analysis. I decided to derive most of my insights from the text data alone absent other factors."),
+                 p("Finally, a quick note on the visualization of data: the processes of text mining and machine learning are incredibly intensive. It took hours of configuring the GPU on my high-end laptop for processes to run, and even then it takes hours. As such, most of the plots and displays of data will be in the form of images rather than graphs generated from this application, as I want it to actually display for people without overloading Shiny or somebody else's computer."),
+                 h3("About Me"),
+                 p("My name is Will Schrepferman and I study Government with a focus in Data Science! I am fascinated by political rhetoric and the history of the American presidency. This project has been a deeply interesting combination of those interests with data science techniques! They might seem somewhat arbitrary and purposeless, but sentiment analysis, topic modeling, and NLG have powerful implications for the real world. If these processes are designed at scale, they are able to be used to identify the authors of documents in a field like forensics, and NLG is even used to generate machine-written news content with minimal input from humans at mainstream news sites like Bloomberg. I hope you enjoy my project. You can reach me at willschrepferman@college.harvard.edu.")),
         tabPanel("Sentiment Analysis",
                  titlePanel("Sentiment Analysis"),
                  p("A sentiment analysis quantifies the positive and negative tone inherent in a speech. Using a comprehensive lexicon of words, I calculated the average positive sentiment of every State of the Union was calculated. In order to maintain the lexicon's viability, I only used 'modern' speeches- those delivered in a spoken format in the last hundred years (expanded slightly to include all of Pres. Wilson's speeches)- so that the lexicon did not struggle to analyze the diction and speech patterns of 19th and 18th century English."),
@@ -167,13 +170,10 @@ shinyApp(
                  p("Topic modeling is a method for unsupervised classification of documents used to find natural groups of items."),
                  p("The model I used specifically uses Latent Dirichlet allocation (LDA), LDA is a particularly popular method for fitting a topic model. It treats each document as a mixture of topics, and each topic as a mixture of words. This allows documents to “overlap” each other in terms of content, rather than being separated into discrete groups, in a way that mirrors typical use of natural language."),
                  p("Before we get to my topic model itself, here are a few insights I found along the way."),
-                 h3("Zipf's Law"),
-                 p("This corpus exhibits Zipf's Law, which is a linguistic idea that the frequency of a word is inversely proportional to that word's 'rank' in the frequency table."),
-                 img(src="zipf.png", align = "center"),
                  h3("Distinctive Words"),
-                 p("Next, here is an exhibition of the idea of a word's 'uniqueness.' Using a word's tf-idf (term frequency multiplied by inverse document frequency) as a measure of how distinctive a word is too a speech, here are graphs with it on the x-axis for four speeches from pivotal points in American history (The Great Recession, the Mexican-American War, The Great Depression, and the end of World War 2)."),
+                 p("Here is an exhibition of the idea of a word's 'uniqueness.' Using a word's tf-idf (term frequency multiplied by inverse document frequency) as a measure of how distinctive a word is too a speech, here are graphs with it on the x-axis for four speeches from pivotal points in American history (The Great Recession, the Mexican-American War, The Great Depression, and the end of World War 2)."),
                  p("As you can see, Obama's 2008 address had high tf-idf values for words like 'lending', 'recession', and 'recovery'; for Polk, 'Mexico' and 'Texas'; for Roosevelt, 'recovery' and 'structure'; and for Truman, 'reconversion' and 'peacetime.' These are the words most distinct to these particular speeches, and they make sense in historical context."),
-                 img(src = "fourspeeches.png", align = "center"),
+                 img(src = "fourspeeches_clean.png", align = "center"),
                  h3("Topic Models"),
                  p("Finally, here is a display of the topic models themselves. I built a model with 8 topics; a 'topic' can be thought of as a series of words that the algorithm detects to be frequently used together. A few things I did to clean this data- I filtered out common words like 'America' or 'Congress.' The x-axis of each graph is a measure of how often a particular word is used in a given topic."),
                  img(src = "topics.png", align = "center"),
@@ -184,40 +184,34 @@ shinyApp(
                  p("For the last part of my project, I delved into machine learning and neural networks. I set out to use natural language generation (NLG) to 'write' a totally original, machine-created State of the Union."),
                  p("Due to the large amount of data involved, I kept the input data restricted to just speeches from President Obama. Thus, I call my creation RoBama."),
                  h3("Meet RoBama"),
+                 img(src = "robama.png", align = "center"),
                  p("I will offer a more technical explanation of how exactly RoBama works later, but for now, RoBama can be thought of as a machine that read all of Obama's speeches and is learning to write an entirely new one. It does so in stages."),
                  h3("RoBama, Stage 1:"),
                  p("In its first stage, RoBama is spitting complete gibberish:"),
-                 p("ROBAMA, STAGE 1: essorns erendert theiath omoch and out that prosiene bactineve the stoathane and make wneot shate beame a contoseiy in and scing leat tax fiscelorger pays we keet our ooten gat canced the biling wath furldrist to sedjort contiseut to betaepy job lowt"),
+                 strong("ROBAMA, STAGE 1: essorns erendert theiath omoch and out that prosiene bactineve the stoathane and make wneot shate beame a contoseiy in and scing leat tax fiscelorger pays we keet our ooten gat canced the biling wath furldrist to sedjort contiseut to betaepy job lowt"),
                  p("Totally meaningless- RoBama almost sounds like a toddler, but it has learned a few words like 'out,' 'job,' and 'tax."),
                  h3("RoBama, Stage 3:"),
                  p("By stage 3, RoBama is a toddler. It has learned to put words together, but they still don't make much sense."),
-                 p("ROBAMA, STAGE 3: trength in in our our economy the servest with our families and companies and differens to rebusing and the reads and i will condere that we allead we prelent and we spending the trade to the past and some every a deficit that i ask the who has when "),
+                 strong("ROBAMA, STAGE 3: trength in in our our economy the servest with our families and companies and differens to rebusing and the reads and i will condere that we allead we prelent and we spending the trade to the past and some every a deficit that i ask the who has when "),
                  p("RoBama is starting to make a moderate amount of sense. It references 'families and companies' who are, as he describes 'rebusing.' Whatever that may mean."),
                  h3("RoBama, Stage 20:"),
                  p("Skipping to Stage 20, RoBama is sounding more like an edgy tween who just learned what politics is."),
-                 p("ROBAMA, STAGE 20: the stratem is the same spend in the world we're most because of americans the few expections that in the some of the world we're not just that is the world will and that's why i'm asks of americans that we must and that we must and that's why i'm a"),
+                 strong("ROBAMA, STAGE 20: the stratem is the same spend in the world we're most because of americans the few expections that in the some of the world we're not just that is the world will and that's why i'm asks of americans that we must and that we must and that's why i'm a"),
                  p("There's some moderate coherence to what it's saying now. Americans in some of the world, RoBama roughly describes, we're not just that. That's why it's asking of 'Americans that we must and that's why I'm a...' presumably it meant to say 'awesome creation by Will Schrepferman.'"),
                  h3("RoBama, Stage 40"),
                  p("We now cut to Stage 40. RoBama is nearly all grown up."),
-                 p("ROBAMA, STAGE 40: the first time in the real of the mission leaders in the own than i'm all people to share in the future we should come a responsibility she was that the american people are show the banks that will require america as the last month i will the eager with"),
+                 strong("ROBAMA, STAGE 40: the first time in the real of the mission leaders in the own than i'm all people to share in the future we should come a responsibility she was that the american people are show the banks that will require america as the last month i will the eager with"),
                  p("It starts to become apparent that I should have given RoBama some form of ability to punctuate. Alas. Regardless, it has still discovered that it is the mission of leaders to share in the future. This is actually a pretty presidential statement. Nice job, RoBama! It also said that the banks will require America, which is also very true."),
                  h3("RoBama, Stage 50:"),
                  p("By Stage 50 (the final stage I was able to run), RoBama was doing even greater things"),
-                 p("ROBAMA, FINAL STAGE (50): this congress to get the work to the worsumering the future we can support the parts of the rest of this constructions that the worston we will not and to the people to the work of americans we put to the people and that is when it we are americans"),
+                 strong("ROBAMA, FINAL STAGE (50): this congress to get the work to the worsumering the future we can support the parts of the rest of this constructions that the worston we will not and to the people to the work of americans we put to the people and that is when it we are americans"),
                  p("I agree, RoBama! This Congress needs to get to work on the future so that we can support construction. When we put to the people, that is when we are Americans!!!!"),
                  h3("Conclusion"),
                  p("Thus ends the saga of RoBama. I feel a bit like Victor Frankenstein- this creature I've built is not quite human, but as it learned more and more from the input data, it actually approached some semblance of humanity. RoBama even made more sense than certain presidents have at times."),
                  h3("More Technical Details"),
                  p("Here is a more technical description of natural language generation for those interested!"),
                  p("NLG trains a machine-learning algorithm over a wide swath of input text. The model I used is a character-level language model, which takes a single character and then predicts what character should come next, based on what it has 'learned' from the input data. It does this using a neural network, which can be thought of as an artificial set of 'neurons' (data points) with and the connections between them (in this case, which character is associated with what other character). Specifically, I made a deep-learning LTSM (long term short memory) neural network (which is special because it can handle sequences of data) and trained it on my State of the Union data."),
-                 p("I ran into several obstacles: first of all, in order to use machine learning in R in any amount of reasonable time, I had to set reconfigure the program to run on my GPU (graphical processing unit). Furthermore, I did not have enough RAM to take all of my data as input; so, I had to limit my input data to only one president's worth of speech data. I chose Obama. Finally, I was limited in how much data I could output, so each individual output is only 250 characters. Despite the difficulties, this proved to be a fascinating exploration of cutting-edge data science techniques.")),
-        tabPanel("About", 
-                 titlePanel("About"),
-                 h3("Project Background and Motivations"),
-                 p("I am fascinated by political rhetoric and the history of the American presidency. This project has been a deeply interesting combination of those interests with data science techniques! They might seem somewhat arbitrary and purposeless, but sentiment analysis, topic modeling, and NLG have powerful implications for the real world. If these processes are designed at scale, they are able to be used to identify the authors of documents in a field like forensics, and NLG is even used to generate machine-written news content with minimal input from humans at mainstream news sites like Bloomberg."),
-                 h3("About Me"),
-                 p("My name is Will Schrepferman and I study Government with a focus in Data Science! I hope you've enjoyed my project. 
-             You can reach me at willschrepferman@college.harvard.edu."))),
+                 p("I ran into several obstacles: first of all, in order to use machine learning in R in any amount of reasonable time, I had to set reconfigure the program to run on my GPU (graphical processing unit). Furthermore, I did not have enough RAM to take all of my data as input; so, I had to limit my input data to only one president's worth of speech data. I chose Obama. Finally, I was limited in how much data I could output, so each individual output is only 250 characters. Despite the difficulties, this proved to be a fascinating exploration of cutting-edge data science techniques."))),
     server = function(input, output) {
         
         output$sentiment_plot <- renderPlotly({

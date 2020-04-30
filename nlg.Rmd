@@ -68,17 +68,16 @@ for(i in files){
     base_file <- rbind(base_file, readfile(i))
 }
 
+# select only Obama's speeches due to RAM limitations
 
 base_file_modern <- base_file %>%
   filter(president == "Obama")
 
-
-
+# maximum length of sequences
 
 maxlen <- 40
 
-
-
+# tokenize total text data
 
 text <- base_file_modern %>%
   pull(word) %>%
@@ -86,12 +85,15 @@ text <- base_file_modern %>%
   str_c(collapse = " ")  %>%
   tokenize_characters(strip_non_alphanum = FALSE, simplify = TRUE)
 
+# count how many character
+
 chars <- text %>%
   unique() %>%
   sort()
 
 
 # Cut the text in semi-redundant sequences of maxlen characters
+
 dataset <- map(
   seq(1, length(text) - maxlen - 1, by = 3), 
   ~list(sentece = text[.x:(.x + maxlen - 1)], next_char = text[.x + maxlen])
@@ -100,6 +102,7 @@ dataset <- map(
 dataset <- transpose(dataset)
 
 # Vectorization
+
 x <- array(0, dim = c(length(dataset$sentece), maxlen, length(chars)))
 y <- array(0, dim = c(length(dataset$sentece), length(chars)))
 
@@ -113,7 +116,7 @@ for(i in 1:length(dataset$sentece)){
   
 }
 
-# Model Definition --------------------------------------------------------
+# Model Definition (from keras library)
 
 model <- keras_model_sequential()
 
@@ -129,7 +132,7 @@ model %>% compile(
   optimizer = optimizer
 )
 
-# Training & Results ----------------------------------------------------
+# Training & Results
 
 sample_mod <- function(preds, temperature = 1){
   preds <- log(preds)/temperature
@@ -140,6 +143,8 @@ sample_mod <- function(preds, temperature = 1){
     as.integer() %>%
     which.max()
 }
+
+# create a neat display for every epoch
 
 on_epoch_end <- function(epoch, logs) {
   
@@ -152,6 +157,8 @@ on_epoch_end <- function(epoch, logs) {
     start_index <- sample(1:(length(text) - maxlen), size = 1)
     sentence <- text[start_index:(start_index + maxlen - 1)]
     generated <- ""
+    
+    # cycle through predictions for 250 characters per epoch
     
     for(i in 1:250){
       
@@ -176,6 +183,8 @@ on_epoch_end <- function(epoch, logs) {
 }
 
 print_callback <- callback_lambda(on_epoch_end = on_epoch_end)
+
+# actually run the model
 
 model %>% fit(
   x, y,
