@@ -148,15 +148,19 @@ shinyApp(
         tabPanel("About",
                  titlePanel("Introduction"), 
                  h3("Welcome to my final project for Gov 1005: Data!"),
+                 
+                 # found out that images can be easily accessed from folder www/ (working directory)
+                 
                  img(src = "SOTU.jpg", align = "center"),
                  p(""),
                  p("Article 2, Section 3 of the Constitution describes that the President shall 'from time to time give to the Congress Information of the State of the Union, and recommend to their Consideration such measures as he shall judge necessary and expedient.'"),
                  p("This one of the few political traditions that every President from Washington to Trump has partaken in. For two centuries, every President has taken the chance to report an assessment on the condition of the United States, recommend a legislative program for the coming session of Congress, and present a vision for the future."),
                  p("1,773,287 total words have been spoken in this tradition, creating a fascinating trove of data. This project seeks to apply a series of data science techniques to better understand the State of the Union, including sentiment analysis of the positivity and tone of each address, topic modeling to illustrate the relationship of words and ideas to one another, and machine learning in the form of natural language generation to create a 'new', automated State of the Union address."),
-                 p("The data used in this project is from this corpus on Kaggle:"),
-                 p("https://www.kaggle.com/jyronw/us-state-of-the-union-addresses-1790-2019"),
+                 a(href = "https://www.kaggle.com/jyronw/us-state-of-the-union-addresses-1790-2019", "The data used in this project is from this corpus on Kaggle."),
+                 p(""),
                  p("I initially combined this data with other information I found on State of the Union addresses (you can still see that in my code, so I believe I met the project requirement guidelines), but this proved frivolous to my ultimate analysis. I decided to derive most of my insights from the text data alone absent other factors."),
                  p("Finally, a quick note on the visualization of data: the processes of text mining and machine learning are incredibly intensive. It took hours of configuring the GPU on my high-end laptop for processes to run, and even then it takes hours. As such, most of the plots and displays of data will be in the form of images rather than graphs generated from this application, as I want it to actually display for people without overloading Shiny or somebody else's computer."),
+                 a(href="https://github.com/willschrepf/state_of_the_union_data", "You can check out all the code for this app in my github repo!"),
                  h3("About Me"),
                  p("My name is Will Schrepferman and I study Government with a focus in Data Science! I am fascinated by political rhetoric and the history of the American presidency. This project has been a deeply interesting combination of those interests with data science techniques! They might seem somewhat arbitrary and purposeless, but sentiment analysis, topic modeling, and NLG have powerful implications for the real world. If these processes are designed at scale, they are able to be used to identify the authors of documents in a field like forensics, and NLG is even used to generate machine-written news content with minimal input from humans at mainstream news sites like Bloomberg. I hope you enjoy my project. You can reach me at willschrepferman@college.harvard.edu.")),
         tabPanel("Sentiment Analysis",

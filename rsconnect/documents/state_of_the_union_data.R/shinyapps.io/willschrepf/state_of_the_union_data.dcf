@@ -1,0 +1,13 @@
+name: state_of_the_union_data
+title: state_of_the_union_data
+username:
+account: willschrepf
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2217853
+bundleId: 3086392
+url: https://willschrepf.shinyapps.io/state_of_the_union_data/
+when: 1588260603.74301
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|nlg.Rmd|README.md|sentiment_analysis.Rmd|topic_modeling.Rmd
